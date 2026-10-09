@@ -25,16 +25,25 @@ if ($listener) {
 
 if ($ok) {
     try {
-        $tcp = [System.Net.Sockets.TcpClient]::new()
+        $tcp = [System.Net.Sockets.TcpClient]::new([System.Net.Sockets.AddressFamily]::InterNetworkV6)
         $tcp.Connect([System.Net.IPAddress]::IPv6Loopback, 6767)
         $stream = $tcp.GetStream()
         $request = "GET /sse HTTP/1.1`r`nHost: [::1]:6767`r`nAccept: text/event-stream`r`n`r`n"
         $bytes = [System.Text.Encoding]::ASCII.GetBytes($request)
         $stream.Write($bytes, 0, $bytes.Length)
-        $stream.ReadTimeout = 5000
+        $stream.ReadTimeout = 3000
         $buffer = New-Object byte[] 1024
-        $read = $stream.Read($buffer, 0, $buffer.Length)
-        $text = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $read)
+        $text = ''
+        for ($i = 0; $i -lt 5; $i++) {
+            try {
+                $read = $stream.Read($buffer, 0, $buffer.Length)
+            } catch [System.IO.IOException] {
+                break
+            }
+            if ($read -le 0) { break }
+            $text += [System.Text.Encoding]::UTF8.GetString($buffer, 0, $read)
+            if ($text -match 'endpoint') { break }
+        }
         if ($text -match 'endpoint') {
             Write-Host "[ok]   SSE handshake received (event: endpoint)"
         } else {
