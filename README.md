@@ -100,6 +100,22 @@ Restart your client after changing MCP configuration — MCP configs are read at
 
 The tool names mirror [tacyan/AffinityMCP](https://github.com/tacyan/AffinityMCP) so existing prompts keep working. `canva.create_design` is intentionally not carried over: it was a stub returning a fake UUID in the original repo, and Canva integration ships inside the app itself.
 
+## CLI driver for shell-based agents
+
+`scripts/affinity-driver.mjs` is a dependency-free Node CLI that drives the bridge without an MCP client — useful for coding agents that only have a shell. It locates the bridge via `AFFINITY_BRIDGE_DIR`, the repo it lives in, or `~/tools/affinity-mcp-windows`.
+
+```powershell
+node scripts/affinity-driver.mjs status                # connection + exposed tools
+node scripts/affinity-driver.mjs list-docs             # SDK documentation topics
+node scripts/affinity-driver.mjs read-doc nodes.js     # read one topic
+node scripts/affinity-driver.mjs run my-script.js      # run a file inside Affinity
+node scripts/affinity-driver.mjs run-inline "console.log(1)"
+node scripts/affinity-driver.mjs call execute_script '{"script":"console.log(1)"}'
+node scripts/affinity-driver.mjs render spread out.png # save a spread render
+```
+
+Run one invocation at a time; Affinity's MCP server handles a single SSE session best.
+
 ## How it works
 
 1. Connects to `http://[::1]:6767/sse` (override with `AFFINITY_MCP_URL` or `AFFINITY_MCP_PORT`), falling back to `127.0.0.1`.
