@@ -1,0 +1,40 @@
+{
+  "name": "affinity-mcp-windows",
+  "version": "0.1.0",
+  "description": "MCP bridge for Affinity (Canva-era) on Windows: drives Affinity's built-in local MCP server and JavaScript SDK through a stdio MCP interface.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "affinity-mcp-windows": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "npm run build && node --test \"dist/test/*.test.js\""
+  },
+  "keywords": [
+    "mcp",
+    "affinity",
+    "canva",
+    "windows",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.7.0"
+  }
+}
