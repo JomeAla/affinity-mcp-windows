@@ -116,6 +116,12 @@ node scripts/affinity-driver.mjs render spread out.png # save a spread render
 
 Run one invocation at a time; Affinity's MCP server handles a single SSE session best.
 
+`scripts/mcp-handshake-probe.mjs` verifies the stdio server itself (initialize + tools/list) without any MCP client — handy when diagnosing client connection issues or confirming a fresh build:
+
+```powershell
+node scripts/mcp-handshake-probe.mjs
+```
+
 ## How it works
 
 1. Connects to `http://[::1]:6767/sse` (override with `AFFINITY_MCP_URL` or `AFFINITY_MCP_PORT`), falling back to `127.0.0.1`.
