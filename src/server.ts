@@ -15,6 +15,7 @@ import {
   closeDocumentScript,
   createNewScript,
   drawShapeScript,
+  exportOutlinedScript,
   exportPreset,
   exportScript,
   filterScript,
@@ -44,7 +45,7 @@ export function rawResult(result: unknown) {
 }
 
 export function createServer(client: AffinityClient = new AffinityClient()): McpServer {
-  const server = new McpServer({ name: "affinity-mcp-windows", version: "0.1.0" });
+  const server = new McpServer({ name: "affinity-mcp-windows", version: "0.2.0" });
 
   async function runScript(script: string) {
     const result = await client.executeScript(script);
@@ -125,7 +126,7 @@ export function createServer(client: AffinityClient = new AffinityClient()): Mcp
         "Export the current document to a file (natural language: 'export as PDF ...'). Affinity sandboxes file writes to the Desktop; relative paths are anchored there.",
       inputSchema: {
         path: z.string().describe("Target file path. Relative paths land on the Windows Desktop."),
-        format: z.enum(["pdf", "png", "jpg", "tiff", "svg"]).describe("Export format."),
+        format: z.enum(["pdf", "png", "jpg", "tiff", "svg", "eps"]).describe("Export format."),
         quality: z
           .number()
           .min(1)
@@ -138,6 +139,22 @@ export function createServer(client: AffinityClient = new AffinityClient()): Mcp
       if (!exportPreset(format)) return textResult({ exported: false, error: `unsupported format: ${format}` }, true);
       const desktop = await client.getDesktopPath();
       return runScript(exportScript(anchorToDesktop(desktop, path), format));
+    },
+  );
+
+  server.registerTool(
+    "affinity.export_outlined",
+    {
+      description:
+        "Export the current document with all text outlined (converted to curves) — the print-safe vector route for SVG/PDF/EPS. The open document's text is restored afterwards via undo.",
+      inputSchema: {
+        path: z.string().describe("Target file path. Relative paths land on the Windows Desktop."),
+        format: z.enum(["svg", "pdf", "eps"]).describe("Vector export format."),
+      },
+    },
+    async ({ path, format }) => {
+      const desktop = await client.getDesktopPath();
+      return runScript(exportOutlinedScript(anchorToDesktop(desktop, path), format));
     },
   );
 
@@ -209,7 +226,7 @@ export function createServer(client: AffinityClient = new AffinityClient()): Mcp
           .array(
             z.object({
               path: z.string(),
-              format: z.enum(["pdf", "png", "jpg", "tiff", "svg"]),
+              format: z.enum(["pdf", "png", "jpg", "tiff", "svg", "eps"]),
               quality: z.number().min(1).max(100).optional(),
             }),
           )

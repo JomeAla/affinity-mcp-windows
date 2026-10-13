@@ -79,13 +79,17 @@ export function createNewScript(width: number, height: number): string {
 })();`;
 }
 
+// Preset names must match Affinity's export presets exactly. The plain names
+// "PDF"/"SVG"/"JPEG"/"TIFF" do not exist in Affinity and made those exports
+// fail with a bare error record.
 const EXPORT_PRESETS: Record<string, string> = {
-  pdf: "PDF",
+  pdf: "PDF (for print)",
   png: "PNG",
-  jpg: "JPEG",
-  jpeg: "JPEG",
-  tiff: "TIFF",
-  svg: "SVG",
+  jpg: "JPEG (Best quality)",
+  jpeg: "JPEG (Best quality)",
+  tiff: "TIFF RGB 8-bit",
+  svg: "SVG (for export)",
+  eps: "EPS (for export)",
 };
 
 export function exportPreset(format: string): string | null {
@@ -125,6 +129,47 @@ export function exportScript(path: string, format: string): string {
       });
     }
     console.log(JSON.stringify({ exported: results.some(function (r) { return r.ok; }), results: results }));
+  } catch (e) {
+    console.log(JSON.stringify({ exported: false, path: ${p}, error: String((e && e.message) || e) }));
+  }
+})();`;
+}
+
+export function exportOutlinedScript(path: string, format: string): string {
+  const preset = exportPreset(format) ?? "SVG (for export)";
+  const p = JSON.stringify(path);
+  return `(function () {
+  const { Document, FileExportOptions, FileExportArea } = require('/document');
+  try {
+    const doc = Document.current;
+    if (!doc) {
+      console.log(JSON.stringify({ exported: false, error: 'no open document' }));
+      return;
+    }
+    const nodes = [];
+    for (const n of doc.layers) nodes.push(n);
+    const texts = nodes.filter(function (n) { return n.isArtTextNode; });
+    for (const t of texts) {
+      doc.convertToCurves(t.selfSelection);
+    }
+    let exported = false;
+    const results = [];
+    try {
+      const target = ${p};
+      const opts = FileExportOptions.createWithPresetName(${JSON.stringify(preset)});
+      const records = doc.export(target, opts, FileExportArea.createForWholeDocument(), null);
+      for (const r of records.all) {
+        results.push({
+          path: r.path,
+          ok: r.isSuccess,
+          error: r.isSuccess ? undefined : r.errorMessage,
+        });
+      }
+      exported = results.some(function (r) { return r.ok; });
+    } finally {
+      for (let i = 0; i < texts.length; i++) doc.undo();
+    }
+    console.log(JSON.stringify({ exported: exported, outlined_text_nodes: texts.length, results: results }));
   } catch (e) {
     console.log(JSON.stringify({ exported: false, path: ${p}, error: String((e && e.message) || e) }));
   }

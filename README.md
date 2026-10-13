@@ -82,7 +82,8 @@ Restart your client after changing MCP configuration — MCP configs are read at
 | `affinity.status` | Connection health, Affinity's exposed SDK tools, Desktop path |
 | `affinity.open_file` | Open a file in Affinity |
 | `affinity.create_new` | Create a document (pixel sizes) |
-| `affinity.export` | Export the current document (pdf/png/jpg/tiff/svg) |
+| `affinity.export` | Export the current document (pdf/png/jpg/tiff/svg/eps) using Affinity's real preset names |
+| `affinity.export_outlined` | Print-safe vector export: outlines text, exports SVG/PDF/EPS, then restores the live text |
 | `affinity.apply_filter` | Add a live blur-family filter (blur, median, motion, radial, bilateral, lens, …) |
 | `affinity.get_active_document` | Current document metadata |
 | `affinity.close_document` | Close the current document |
@@ -133,10 +134,19 @@ The argument names of Affinity's tools are resolved from their live schemas at c
 
 ## Gotchas worth knowing
 
-- **The filesystem is sandboxed to the Windows Desktop.** Scripts can only read/write there. Relative export paths are anchored to the Desktop automatically.
+- **The filesystem is sandboxed to the Windows Desktop.** Scripts can only read/write there. Relative export paths are anchored to the Desktop automatically. On OneDrive-redirected Desktops, pass absolute paths under `C:\Users\<you>\OneDrive\Desktop` — the literal `C:\Users\<you>\Desktop` can exist but be denied.
 - **Text size is in pixels** in the SDK; the bridge accepts points and converts using the document DPI.
 - **High-level generators are best-effort v1.** The reliable core is `affinity.execute_script` plus the SDK documentation tools: ask your agent to read the relevant SDK topic and write the script. The generators are easy to extend in `src/scripts/generators.ts`.
 - **Live-verified against Affinity 3.3.0.4850 (Win32)** and covered by unit/integration tests against a fake Affinity server (`npm test`).
+
+## Recipes
+
+`recipes/` holds paste-ready SDK scripts and hard-won patterns from real production work (a complete streetwear graphic suite — samurai, oni mask, dragon — drawn entirely with SDK vector calls, no AI image generation):
+
+- `affinity-drawing-helpers.js` — node builders, ink-splatter generator, halftone arcs, ring-with-hole, mirroring
+- `build-hannya-oni.js` — a complete 3600x4800 @300dpi tee-print build with `ink` / `inverse` (black-garment) modes
+- `export-outlined-vector.js` — the script form of `affinity.export_outlined`
+- `README.md` — long-form gotchas: save-wedge recovery via snapshots, the text measure/build/position cycle, document-resize correction maths, OneDrive Desktop paths, and why you should QA layout by exporting a PNG rather than trusting `render_spread`
 
 ## Troubleshooting
 
@@ -147,6 +157,8 @@ The argument names of Affinity's tools are resolved from their live schemas at c
 | First script returns "preamble has not been read" | The bridge reads it automatically; reconnect if you see this |
 | Tools missing after setup | Restart your MCP client — configuration is read at startup |
 | Nothing works after an Affinity restart | Restart your MCP client, or call `affinity.status` to reconnect |
+| SVG/PDF export returns `ERROR` | Fixed in 0.2.0 — update, or use preset names like `SVG (for export)` / `PDF (for print)` yourself |
+| A save fails with `LOCK_LOST` after heavy scripting | Recover with a snapshot: add one via `createAddDocumentSnapshot`, `snapshot.createDocument()`, then save the copy (see `recipes/README.md`) |
 
 ## Development
 
@@ -163,6 +175,14 @@ Source layout:
 - `src/server.ts` — stdio MCP server and tool registration
 - `src/test/` — fake Affinity server and tests
 - `scripts/win/` — verification and setup scripts
+
+## Changelog
+
+### 0.2.0
+
+- **Fixed vector and JPEG/TIFF exports.** The generators used preset names that do not exist in Affinity (`PDF`, `SVG`, `JPEG`, `TIFF`), so those exports failed with a bare error record while PNG worked. Now: `PDF (for print)`, `SVG (for export)`, `JPEG (Best quality)`, `TIFF RGB 8-bit`, and `eps` was added as `EPS (for export)`.
+- **Added `affinity.export_outlined`** — outlines all artistic text, exports a print-safe SVG/PDF/EPS, then restores the document's live text via undo.
+- **Added `recipes/`** — paste-ready SDK scripts and production gotchas (text placement cycle, save-wedge recovery, resize correction maths, OneDrive Desktop paths).
 
 ## Credits and prior art
 

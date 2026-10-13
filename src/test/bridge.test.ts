@@ -7,6 +7,7 @@ import { AffinityClient, extractText } from "../affinity/sse-client.js";
 import { createServer } from "../server.js";
 import {
   anchorToDesktop,
+  exportOutlinedScript,
   exportPreset,
   exportScript,
   filterScript,
@@ -69,6 +70,7 @@ test("MCP server exposes affinity tools and runs one end to end", async (t) => {
     "affinity.open_file",
     "affinity.create_new",
     "affinity.export",
+    "affinity.export_outlined",
     "affinity.apply_filter",
     "affinity.get_active_document",
     "affinity.close_document",
@@ -90,8 +92,13 @@ test("MCP server exposes affinity tools and runs one end to end", async (t) => {
 
 test("script generation helpers behave", () => {
   assert.ok(openFileScript("C:\\tmp\\a.jpg").includes('Document.load("C:\\\\tmp\\\\a.jpg")'));
-  assert.equal(exportPreset("jpg"), "JPEG");
-  assert.ok(exportScript("C:/tmp/out.pdf", "pdf").includes("createWithPresetName(\"PDF\")"));
+  assert.equal(exportPreset("jpg"), "JPEG (Best quality)");
+  assert.equal(exportPreset("svg"), "SVG (for export)");
+  assert.equal(exportPreset("eps"), "EPS (for export)");
+  assert.ok(exportScript("C:/tmp/out.pdf", "pdf").includes('createWithPresetName("PDF (for print)")'));
+  assert.ok(exportOutlinedScript("C:/tmp/out.svg", "svg").includes("convertToCurves"));
+  assert.ok(exportOutlinedScript("C:/tmp/out.svg", "svg").includes('createWithPresetName("SVG (for export)")'));
+  assert.ok(exportOutlinedScript("C:/tmp/out.svg", "svg").includes("doc.undo()"));
   assert.equal(filterScript("not-a-filter", 10), null);
   assert.equal(filterScript("blur", 33)?.includes("GaussianBlurFilterRasterNodeDefinition"), true);
   assert.ok(supportedFilters().includes("motion"));
