@@ -12,10 +12,13 @@ entirely with vector SDK calls — no AI image generation.
 | `affinity-drawing-helpers.js` | Helper block to paste at the top of any drawing script (node builders, blob/splatter generator, mirror, ring-with-hole). |
 | `build-hannya-oni.js` | Complete, parametric tee-print build (3600x4800 @300dpi, transparent). Flip `MODE` between `ink` (light garments) and `inverse` (black garments). |
 | `export-outlined-vector.js` | Standalone print-safe vector export (outline text -> export SVG/PDF -> undo). Mirrors the `affinity.export_outlined` tool. |
+| `ops-runtime.mjs` | Node-side harness: turn a JSON op list (poly / batch / text) into a runnable Affinity script via `buildScript(ops, opts)`. The producer half of large composite scenes — pair with `scripts/affinity-driver.mjs run`. |
 
 Scripts cannot `require()` these files unless the folder is added under
 Affinity's scripting filesystem permissions, so treat them as copy-paste
 sources. SDK modules (`/document.js`, `/nodes.js`, ...) are always importable.
+`ops-runtime.mjs` is the exception in spirit: it runs in *Node*, writes a
+generated `.js`, and the driver executes that file inside Affinity.
 
 ## Patterns that took the longest to learn
 
@@ -76,3 +79,35 @@ sources. SDK modules (`/document.js`, `/nodes.js`, ...) are always importable.
     control points. Halftone: an arc of circles at fixed radius from the
     design center with sizes falling off linearly. Both are a dozen lines of
     JS — see the helpers file.
+
+11. **Batch same-colour shapes into ONE multi-curve node.** Per-node
+    `addNode` costs roughly 4 nodes/sec in a large document — a 5,500-shape
+    scene takes ~13 minutes. A `PolyCurve` holding hundreds of *disjoint*
+    subpaths costs the same as one node, so group shapes by fill colour
+    (quantise alpha to keep group counts sane) and add one node per group.
+    The same scene drops to a few hundred ops and builds in seconds. Caveat:
+    a PolyCurve fills with the even-odd rule — overlapping subpaths inside a
+    single node cancel out, so keep batches to non-overlapping shapes and
+    draw anything overlapping as its own node. See `ops-runtime.mjs` (`batch`
+    op kind).
+
+12. **Linear gradients run along the transform box DIAGONAL**, not the axis.
+    A gradient fill's transform defines a box; stop 0..1 maps from
+    `(x0, y0)` to `(x1, y1)` of that box — set `bbox` to the shape's extents
+    for a corner-to-corner falloff. If you build art at local coordinates and
+    later translate it (say, +1200 px for the right-hand panel of a diptych),
+    you MUST shift the gradient metadata too (`bbox[0]`, `bbox[2]`, or a
+    radial's `cx`). Shifting only the points leaves the gradient sampling the
+    old transform box — silently, with no error.
+
+13. **Spread navigation.** To jump to a specific page/spread in a
+    multi-spread document: collect `doc.spreads` into an array and
+    `doc.executeCommand(DocumentCommand.createSetCurrentSpread(spreads[i]))`.
+    Useful before anything viewport-dependent.
+
+14. **QA against the exported PNG, at 1:1.** An export of a
+    `1200x600 @300dpi`-per-panel document at PNG preset comes out at exactly
+    document pixel size (e.g. 2400x1200 for a 2400x1200 document), so crop
+    coordinates from pixel inspection map 1:1 onto doc coordinates. Round-trip
+    through `affinity.render_spread` renders the *viewport* and can mislead;
+    the exported file is ground truth.

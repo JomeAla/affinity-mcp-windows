@@ -90,7 +90,11 @@ Restart your client after changing MCP configuration — MCP configs are read at
 | `affinity.batch_open_files` | Open many files in one call |
 | `affinity.batch_export` | Export to many files in one call |
 | `affinity.draw_shape` | Draw circle / ellipse / rectangle / line |
-| `affinity.add_text` | Add artistic text |
+| `affinity.draw_path` | Draw SVG path data (`M L H V C S Q T A Z`) as a native vector node (fill and/or stroke) |
+| `affinity.open_svg` | Write SVG markup to the Desktop and open it in Affinity |
+| `affinity.export_sizes` | Export the document as PNG/JPG at multiple exact pixel sizes (app-icon sets) |
+| `affinity.save_document` | Save the current document as an editable `.af` file |
+| `affinity.add_text` | Add artistic text with font family, style, colour and tracking |
 | `affinity.change_color` | Change the fill colour of the selection |
 | `affinity.draw_pikachu` | Generate a small vector mascot SVG and open it |
 | `affinity.execute_script` | Run arbitrary JS against the official SDK |
@@ -177,6 +181,16 @@ Source layout:
 - `scripts/win/` — verification and setup scripts
 
 ## Changelog
+
+### 0.3.0
+
+- **Added `affinity.draw_path`** — SVG path data (`M L H V C S Q T A Z`, absolute/relative, multiple subpaths, arcs converted to cubics in Node) becomes a native vector node with fill, stroke width/cap/join, offset, uniform scale, layer name and spread targeting.
+- **Added `affinity.open_svg`** — write SVG markup to the Desktop and open it as vectors (creates missing Desktop folders, with a OneDrive Desktop fallback).
+- **Added `affinity.export_sizes`** — export PNG/JPG at multiple exact pixel sizes in one call (square app-icon ladders), using the `{ width, height }` export-size parameter.
+- **Added `affinity.save_document`** — save the open document as `.af` (kept as its own call to avoid the save-wedge gotcha).
+- **Upgraded `affinity.add_text`** — font family/style resolution against installed fonts, applied fill colour, tracking (points) and spread targeting; the v1 "colour not applied" limitation is gone.
+- **Fixed `affinity.draw_shape` line strokes** — the line fill and line style arguments were passed in the wrong order, producing a default hairline; now the stroke colour and width apply.
+- New unit tests cover the SVG path parser, arc conversion, sized exports, saves and styled text.
 
 ### 0.2.0
 
