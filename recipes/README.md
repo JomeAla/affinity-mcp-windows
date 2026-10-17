@@ -12,7 +12,7 @@ entirely with vector SDK calls — no AI image generation.
 | `affinity-drawing-helpers.js` | Helper block to paste at the top of any drawing script (node builders, blob/splatter generator, mirror, ring-with-hole). |
 | `build-hannya-oni.js` | Complete, parametric tee-print build (3600x4800 @300dpi, transparent). Flip `MODE` between `ink` (light garments) and `inverse` (black garments). |
 | `export-outlined-vector.js` | Standalone print-safe vector export (outline text -> export SVG/PDF -> undo). Mirrors the `affinity.export_outlined` tool. |
-| `ops-runtime.mjs` | Node-side harness: turn a JSON op list (poly / batch / text) into a runnable Affinity script via `buildScript(ops, opts)`. The producer half of large composite scenes — pair with `scripts/affinity-driver.mjs run`. |
+| `ops-runtime.mjs` | Node-side harness: turn a JSON op list (poly / batch / text) into a runnable Affinity script via `buildScript(ops, opts)`. The producer half of large composite scenes — pair with `scripts/affinity-driver.mjs run`, or preview offline with `scripts/ops-preview.mjs`. |
 
 Scripts cannot `require()` these files unless the folder is added under
 Affinity's scripting filesystem permissions, so treat them as copy-paste

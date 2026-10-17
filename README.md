@@ -12,6 +12,14 @@ affinity-mcp-windows
 Affinity 3.x built-in MCP server  ->  execute_script  ->  Affinity JS SDK  ->  your document
 ```
 
+## Proof it works
+
+"Blaze" — a full character illustration drawn entirely through this bridge: one SDK script of vector ops executed inside Affinity. No AI image generation, no manual drawing, no UI automation.
+
+![Blaze character, drawn entirely through affinity-mcp-windows](images/blaze-character.png)
+
+That render is the single sample kept in this repo; the builder scripts and other production artwork stay outside it.
+
 ## Why this exists
 
 The original [tacyan/AffinityMCP](https://github.com/tacyan/AffinityMCP) automates Affinity on macOS through AppleScript because Affinity historically had no automation API. Modern Affinity (April '26 and later) ships an official scripting SDK (~379 classes covering vector, photo, text, layout, AI, and dialogs) exposed through a local MCP server inside the app. That server is **cross-platform**, including Windows.
@@ -127,6 +135,13 @@ Run one invocation at a time; Affinity's MCP server handles a single SSE session
 node scripts/mcp-handshake-probe.mjs
 ```
 
+`scripts/ops-preview.mjs` rasterizes an op list (the JSON arrays builders emit for `recipes/ops-runtime.mjs`) to a PNG entirely in Node — no Affinity, no dependencies. Scanline even-odd filling means `batch` groups cancel exactly like one Affinity PolyCurve, and solid/linear/radial fills follow the runtime's gradient semantics, so geometry, batching and z-order can be iterated offline:
+
+```powershell
+node scripts/ops-preview.mjs my-art.js preview.png          # size from content bounds
+node scripts/ops-preview.mjs my-art.js preview.png --ss 1   # faster, aliased
+```
+
 ## How it works
 
 1. Connects to `http://[::1]:6767/sse` (override with `AFFINITY_MCP_URL` or `AFFINITY_MCP_PORT`), falling back to `127.0.0.1`.
@@ -181,6 +196,11 @@ Source layout:
 - `scripts/win/` — verification and setup scripts
 
 ## Changelog
+
+### 0.3.1
+
+- **Added `scripts/ops-preview.mjs`** — a dependency-free Node rasterizer for op lists: scanline even-odd filling (a `batch` group cancels exactly like the single Affinity PolyCurve it will become), solid/linear/radial fills matching the runtime's gradient semantics, supersampled anti-aliasing and PNG output via zlib. Iterate on geometry, batching and z-order without touching Affinity.
+- Added the Blaze character render to the README as the repo's single proof sample.
 
 ### 0.3.0
 
