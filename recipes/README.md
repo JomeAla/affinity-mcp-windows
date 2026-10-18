@@ -13,6 +13,18 @@ entirely with vector SDK calls — no AI image generation.
 | `build-hannya-oni.js` | Complete, parametric tee-print build (3600x4800 @300dpi, transparent). Flip `MODE` between `ink` (light garments) and `inverse` (black garments). |
 | `export-outlined-vector.js` | Standalone print-safe vector export (outline text -> export SVG/PDF -> undo). Mirrors the `affinity.export_outlined` tool. |
 | `ops-runtime.mjs` | Node-side harness: turn a JSON op list (poly / batch / text) into a runnable Affinity script via `buildScript(ops, opts)`. The producer half of large composite scenes — pair with `scripts/affinity-driver.mjs run`, or preview offline with `scripts/ops-preview.mjs`. |
+| `branding-kit.mjs` | Identity-construction toolkit: polygon-native geometry (circles, rounded rects, rings with even-odd holes, capsules, sparks, tick rings), a variable-width stroke expander, a parametric high-contrast Didone letter engine (`didoneWord`) for custom display wordmarks without installed fonts, culinary generators (marbling veins, sear stripes) and SVG + ops emitters. Self-check with the `specimen` CLI. |
+
+`branding-kit.mjs` is the fastest way to draw a wordmark with no font in the
+loop: `didoneWord("FAUX REAL", { H: 300 })` returns an object with `.svg(fill)`
+(for `affinity.open_svg`) and `.ops(fill)` (for `ops-preview.mjs` /
+`ops-runtime.mjs`), so the same geometry can be iterated offline and then
+opened as native vectors.
+
+```powershell
+node recipes/branding-kit.mjs specimen sheet.svg --ops sheet-ops.json --fill "#F2E8D8"
+node scripts/ops-preview.mjs sheet-ops.json sheet.png --ss 1
+```
 
 Scripts cannot `require()` these files unless the folder is added under
 Affinity's scripting filesystem permissions, so treat them as copy-paste

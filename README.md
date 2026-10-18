@@ -142,6 +142,26 @@ node scripts/ops-preview.mjs my-art.js preview.png          # size from content 
 node scripts/ops-preview.mjs my-art.js preview.png --ss 1   # faster, aliased
 ```
 
+`scripts/svg-proofs.mjs` renders a manifest of SVG files as PNG proofs through
+the bridge: open each SVG as vectors, export a proof PNG (plus small-size
+ladders for icon-like files), close the document, and copy everything back from
+the Desktop staging folder. It tolerates Affinity dropping the response to the
+call that opens a document — it polls the document state instead.
+
+```powershell
+node scripts/svg-proofs.mjs --manifest directions/manifest.json --root . --out _qa/proofs --staging _proofs
+node scripts/svg-proofs.mjs --manifest directions/manifest.json --root . --out _qa/proofs --staging _proofs --sizes 512,128,32,16 --sizes-for icon
+```
+
+`scripts/contrast-check.mjs` reports WCAG 2.1 contrast ratios across a palette
+or explicit pairs — handy when a brand palette needs to say which combinations
+can carry text and which are decorative-only:
+
+```powershell
+node scripts/contrast-check.mjs --palette palette.json
+node scripts/contrast-check.mjs --pair "#F2E8D8,#4A1220" --min 4.5 --json
+```
+
 ## How it works
 
 1. Connects to `http://[::1]:6767/sse` (override with `AFFINITY_MCP_URL` or `AFFINITY_MCP_PORT`), falling back to `127.0.0.1`.
@@ -162,6 +182,7 @@ The argument names of Affinity's tools are resolved from their live schemas at c
 
 `recipes/` holds paste-ready SDK scripts and hard-won patterns from real production work (a complete streetwear graphic suite — samurai, oni mask, dragon — drawn entirely with SDK vector calls, no AI image generation):
 
+- `branding-kit.mjs` — identity toolkit: polygon-native geometry, variable-width stroke expansion, a parametric high-contrast Didone letter engine (custom wordmarks with no font in the loop), marbling-vein / sear-stripe generators, SVG + ops emitters, `specimen` self-check CLI
 - `affinity-drawing-helpers.js` — node builders, ink-splatter generator, halftone arcs, ring-with-hole, mirroring
 - `build-hannya-oni.js` — a complete 3600x4800 @300dpi tee-print build with `ink` / `inverse` (black-garment) modes
 - `export-outlined-vector.js` — the script form of `affinity.export_outlined`
@@ -196,6 +217,12 @@ Source layout:
 - `scripts/win/` — verification and setup scripts
 
 ## Changelog
+
+### 0.4.0
+
+- **Added `recipes/branding-kit.mjs`** — identity-construction toolkit: polygon-native geometry (rings with even-odd holes, capsules, sparks, tick rings), a variable-width stroke expander, a parametric high-contrast Didone letter engine for custom display wordmarks with no installed-font dependency, culinary generators (marbling veins, sear stripes), and SVG + ops emitters. Ships a `specimen` self-check CLI.
+- **Added `scripts/svg-proofs.mjs`** — manifest-driven SVG -> PNG proof renderer through the bridge: opens SVGs as vectors, exports proofs (with small-size ladders for icon-like files), stages via the Desktop and copies results back. Handles Affinity dropping the response to the call that opens a document by polling document state.
+- **Added `scripts/contrast-check.mjs`** — dependency-free WCAG 2.1 contrast matrix for brand palettes and explicit colour pairs.
 
 ### 0.3.1
 
