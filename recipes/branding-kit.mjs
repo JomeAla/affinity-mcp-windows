@@ -222,6 +222,37 @@ export function sparkShape(cx, cy, R, bulge = 0.18) {
   return { points: pts, d };
 }
 
+export function circleRingShape(cx, cy, rOuter, rInner) {
+  return {
+    subs: [circlePoly(cx, cy, rOuter), circlePoly(cx, cy, rInner)],
+    evenodd: true,
+    d: circleShape(cx, cy, rOuter).d + " " + circleShape(cx, cy, rInner).d,
+  };
+}
+
+// Organic blob: superellipse-ish disc modulated by seeded harmonics, rotated.
+// wobble ~0.03-0.08 reads as a hand-drawn food form; 0 is a plain ellipse.
+export function blobShape({ cx = 0, cy = 0, rx = 400, ry = 320, seed = 1, wobble = 0.05, rotation = 0, steps = 120, roundness = 2.4 } = {}) {
+  const rnd = mulberry32(seed);
+  const phases = [rnd() * TAU, rnd() * TAU, rnd() * TAU];
+  const rad = (rotation * Math.PI) / 180;
+  const cosr = Math.cos(rad);
+  const sinr = Math.sin(rad);
+  const pts = [];
+  for (let i = 0; i < steps; i++) {
+    const a = (TAU * i) / steps;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const sx = Math.sign(ca) * Math.pow(Math.abs(ca), 2 / roundness);
+    const sy = Math.sign(sa) * Math.pow(Math.abs(sa), 2 / roundness);
+    const m = 1 + wobble * (Math.sin(3 * a + phases[0]) * 0.6 + Math.sin(5 * a + phases[1]) * 0.3 + Math.sin(8 * a + phases[2]) * 0.1);
+    const px = sx * rx * m;
+    const py = sy * ry * m;
+    pts.push({ x: cx + px * cosr - py * sinr, y: cy + px * sinr + py * cosr });
+  }
+  return { points: pts };
+}
+
 // Thick segment, butt caps (perpendicular ends), optionally analytic quad.
 export function barShape(x0, y0, x1, y1, w) {
   const dx = x1 - x0;
@@ -429,20 +460,26 @@ function glyphR(P) {
   const bcy = H * 0.3;
   const brx = W - T * 1.0 - bcx;
   const bry = H * 0.26;
-  const bowl = sampleArc(bcx, bcy, brx, bry, -95, 62, 64);
+  const bowl = sampleArc(bcx, bcy, brx, bry, -95, 105, 72);
   const wfn = didoneWidthFn(T, t, power, 1.15);
   shapes.push(ribbon(bowl, wfn));
-  const legFrom = { x: lerp(bcx, bcx + brx, Math.cos((58 * Math.PI) / 180)), y: lerp(bcy, bcy + bry, Math.sin((58 * Math.PI) / 180)) };
+  const legA = (32 * Math.PI) / 180;
+  const legFrom = { x: bcx + brx * Math.cos(legA), y: bcy + bry * Math.sin(legA) };
+  const txRaw = -brx * Math.sin(legA);
+  const tyRaw = bry * Math.cos(legA);
+  const tnorm = Math.hypot(txRaw, tyRaw) || 1;
+  const wLeg0 = wfn(0, 0, txRaw / tnorm, tyRaw / tnorm);
   const ballR = t * 1.85;
   const ballC = { x: W - ballR * 0.9, y: H - ballR * 0.95 };
   const leg = [];
-  for (let i = 0; i <= 24; i++) {
-    const s = i / 24;
+  const s0 = -0.12;
+  for (let i = 0; i <= 26; i++) {
+    const s = lerp(s0, 1, i / 26);
     leg.push({ x: lerp(legFrom.x, ballC.x, s), y: lerp(legFrom.y, ballC.y, s) });
   }
-  shapes.push(ribbon(leg, (tt) => lerp(T * 0.82, t * 1.5, tt)));
+  shapes.push(ribbon(leg, (tt) => lerp(wLeg0, t * 1.6, Math.min(1, Math.max(0, (tt - s0) / (1 - s0))))));
   shapes.push(circleShape(ballC.x, ballC.y, ballR));
-  return { width: W, shapes };
+  return { width: W, shapes, meta: { ball: ballC, ballR } };
 }
 
 function glyphE(P) {
@@ -497,12 +534,12 @@ export function didoneWord(text, opts = {}) {
   for (const ch of text.toUpperCase()) {
     const g = didoneGlyph(ch, opts);
     x += (kern[prev + ch] ?? 0) * P.H;
-    letters.push({ ch, x, width: g.width, shapes: g.shapes });
+    letters.push({ ch, x, width: g.width, shapes: g.shapes, meta: g.meta });
     x += g.width + tracking;
     prev = ch;
   }
   const width = Math.max(0, x - tracking);
-  const bbox = shapeBounds(letters.flatMap((l) => l.shapes));
+  const bbox = shapeBounds(letters.flatMap((l) => shiftShapes(l.shapes, l.x, 0)));
   return {
     width,
     height: P.H,
@@ -531,7 +568,7 @@ export function didoneWord(text, opts = {}) {
 // culinary generators: marbling veins, sear stripes, tick rings
 // ---------------------------------------------------------------------------
 
-export function marbleVeins({ x = 0, y = 0, w = 800, h = 500, count = 5, seed = 7, thickness = 16, curl = 0.5, angle = 12 } = {}) {
+export function marbleVeins({ x = 0, y = 0, w = 800, h = 500, count = 5, seed = 7, thickness = 11, curl = 0.5, angle = 12, lenVar = 0.45 } = {}) {
   const rnd = mulberry32(seed);
   const shapes = [];
   const rad = (angle * Math.PI) / 180;
@@ -539,31 +576,31 @@ export function marbleVeins({ x = 0, y = 0, w = 800, h = 500, count = 5, seed = 
   const sin = Math.sin(rad);
   const cx = x + w / 2;
   const cy = y + h / 2;
+  const basePhase = rnd() * TAU;
+  const k1 = 1.2 + rnd() * 0.5;
   for (let i = 0; i < count; i++) {
-    const band = (i + 0.5) / count;
-    const off = (band - 0.5) * h * 0.82 + (rnd() - 0.5) * h * 0.08;
-    const phase = rnd() * TAU;
+    const band = count > 1 ? i / (count - 1) : 0.5;
+    const off = (band - 0.5) * h * 0.86 + (rnd() - 0.5) * h * 0.05;
+    const phase = basePhase + band * (1.1 + rnd() * 0.4) + (rnd() - 0.5) * 0.5;
     const phase2 = rnd() * TAU;
-    const wob = 0.1 + rnd() * 0.12;
-    const rise = 0.04 + rnd() * 0.05;
+    const wob = h * (0.09 + rnd() * 0.06) * curl;
+    const rise = h * (0.025 + rnd() * 0.03) * curl;
+    const span = 1 - rnd() * lenVar;
+    const shift = (rnd() - 0.5) * w * (1 - span);
     const pts = [];
-    const steps = 56;
+    const steps = 48;
     for (let s = 0; s <= steps; s++) {
       const u = s / steps;
-      const along = (u - 0.5) * w * 1.02;
-      const across =
-        off +
-        Math.sin(u * 3.1 + phase) * h * wob * curl +
-        Math.sin(u * 7.3 + phase2) * h * rise * curl +
-        (u - 0.5) * h * 0.06 * (rnd() * 2 - 1);
+      const along = shift + (u - 0.5) * w * span;
+      const across = off + Math.sin(u * Math.PI * k1 + phase) * wob + Math.sin(u * Math.PI * (2.6 + rnd() * 0.01) + phase2) * rise;
       pts.push({ x: cx + along * cos - across * sin, y: cy + along * sin + across * cos });
     }
-    const t0 = thickness * (0.7 + rnd() * 0.6);
+    const t0 = thickness * (0.75 + rnd() * 0.5);
     const wfn = (t) => {
-      const peak = Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t))), 0.55);
-      return Math.max(0.6, t0 * (0.25 + 0.75 * peak));
+      const peak = Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, t))), 0.5);
+      return Math.max(0.6, t0 * (0.3 + 0.7 * peak));
     };
-    shapes.push(ribbon(catmullRom(pts, 4), wfn, { taper: 0.85 }));
+    shapes.push(ribbon(pts, wfn, { taper: 0.8 }));
   }
   return shapes;
 }
@@ -601,7 +638,7 @@ export function tickRing(cx, cy, rOuter, len, count, { a0 = 0, a1 = 360, gapFrac
 // shape utilities, emitters
 // ---------------------------------------------------------------------------
 
-function shapeD(s) {
+export function shapeD(s) {
   if (s.d) return s.d;
   const ring = (pts) => "M " + pts.map((p, i) => `${i ? "L " : ""}${fn(p.x)} ${fn(p.y)}`).join(" ") + " Z";
   if (s.subs) return s.subs.map(ring).join(" ");
